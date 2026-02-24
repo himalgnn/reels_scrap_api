@@ -78,7 +78,7 @@ class ScrapeUserResponse(BaseModel):
     reels_count: int
     reels: List[ReelData]
 
-@app.get("/", dependencies=[Depends(verify_api_key)])
+@app.get("/")
 def read_root():
     """Root endpoint that returns a welcome message."""
     logger.info("Root endpoint was accessed.")
@@ -114,7 +114,7 @@ async def scrape_reel(request: ScrapeRequest):
         raise HTTPException(status_code=500, detail="Failed to scrape reel")
 
 
-@app.get("/health", dependencies=[Depends(verify_api_key)])
+@app.get("/health")
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
@@ -300,59 +300,69 @@ async def scrape_instagram_reel(url: str) -> ReelData:
     if not shortcode:
         raise ValueError("Invalid Instagram reel URL")
 
-    max_attempts = len(scrape_instagram_reel._proxy_pool) + 2  # try all proxies, then direct
-    delay = 5
+    cooldown_seconds = 60
     user_agent = random.choice(USER_AGENTS)
     last_error = None
-    for attempt in range(1, max_attempts + 1):
-        proxy = get_next_proxy()
-        # Random delay to avoid detection
-        await asyncio.sleep(random.uniform(1, 2))
-
-        L = instaloader.Instaloader()
-        session_obj = getattr(L.context, '_session', None)
-        if session_obj is not None:
-            if proxy:
-                session_obj.proxies = {
-                    "http": proxy,
-                    "https": proxy,
-                }
-            session_obj.headers["User-Agent"] = user_agent
-
-        try:
-            post = instaloader.Post.from_shortcode(L.context, shortcode)
-            return ReelData(
-                id=post.shortcode,
-                reel_url=url,
-                video_url=post.video_url if post.is_video else None,
-                thumbnail_url=post.url,
-                caption=post.caption,
-                posted_at=post.date_utc.isoformat(),
-                views=post.video_view_count if post.is_video else None,
-                likes=post.likes,
-                comments=post.comments
-            )
-        except Exception as e:
-            err_msg = str(e)
-            last_error = err_msg
-            # Remove bad proxy and try next
-            if proxy:
-                remove_bad_proxy(proxy)
-            # Detect Instagram rate limit or 401 Unauthorized
-            if (
-                "401 Unauthorized" in err_msg or
-                "Please wait a few minutes before you try again" in err_msg or
-                "429" in err_msg or
-                "rate limit" in err_msg.lower()
-            ):
-                if attempt == max_attempts:
-                    raise HTTPException(
-                        status_code=429,
-                        detail="Rate limited by Instagram or all proxies failed. Please wait a few minutes before retrying."
-                    )
-                await asyncio.sleep(delay * attempt)
+    proxies_tried = set()
+    while True:
+        pool = scrape_instagram_reel._proxy_pool[:]
+        if not pool:
+            # No proxies left, cooldown and retry
+            await asyncio.sleep(cooldown_seconds)
+            # Optionally, reload proxies from a source here
+            pool = scrape_instagram_reel._proxy_pool[:]
+            if not pool:
+                raise HTTPException(
+                    status_code=429,
+                    detail="All proxies failed and pool is empty. Please wait and try again later."
+                )
+        for proxy in pool:
+            if proxy in proxies_tried:
                 continue
-            # Other errors: raise as 400
-            if attempt == max_attempts:
-                raise ValueError(f"Failed to scrape reel: {err_msg}")
-            continue
+            proxies_tried.add(proxy)
+            await asyncio.sleep(random.uniform(1, 2))
+            L = instaloader.Instaloader()
+            session_obj = getattr(L.context, '_session', None)
+            if session_obj is not None:
+                if proxy:
+                    session_obj.proxies = {
+                        "http": proxy,
+                        "https": proxy,
+                    }
+                session_obj.headers["User-Agent"] = user_agent
+            try:
+                post = instaloader.Post.from_shortcode(L.context, shortcode)
+                return ReelData(
+                    id=post.shortcode,
+                    reel_url=url,
+                    video_url=post.video_url if post.is_video else None,
+                    thumbnail_url=post.url,
+                    caption=post.caption,
+                    posted_at=post.date_utc.isoformat(),
+                    views=post.video_view_count if post.is_video else None,
+                    likes=post.likes,
+                    comments=post.comments
+                )
+            except Exception as e:
+                err_msg = str(e)
+                last_error = err_msg
+                # Remove bad proxy and try next
+                remove_bad_proxy(proxy)
+                # If rate-limited or 401, skip to next proxy immediately
+                if (
+                    "401 Unauthorized" in err_msg or
+                    "Please wait a few minutes before you try again" in err_msg or
+                    "429" in err_msg or
+                    "rate limit" in err_msg.lower()
+                ):
+                    continue
+                # Other errors: try next proxy
+                continue
+        # If all proxies tried and failed, cooldown and retry
+        await asyncio.sleep(cooldown_seconds)
+        # Optionally, reload proxies from a source here
+        if not scrape_instagram_reel._proxy_pool:
+            raise HTTPException(
+                status_code=429,
+                detail="All proxies failed and pool is empty. Please wait and try again later."
+            )

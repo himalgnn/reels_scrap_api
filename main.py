@@ -285,14 +285,18 @@ async def scrape_instagram_reel(url: str) -> ReelData:
         await asyncio.sleep(random.uniform(1, 3))
 
         L = instaloader.Instaloader()
-        # Set proxy if available
+        # Set proxy if available (use _session for Instaloader >=4.8)
         if proxy:
-            L.context.session.proxies = {
-                "http": proxy,
-                "https": proxy,
-            }
+            session_obj = getattr(L.context, '_session', None)
+            if session_obj is not None:
+                session_obj.proxies = {
+                    "http": proxy,
+                    "https": proxy,
+                }
         # Set user-agent
-        L.context.headers["User-Agent"] = user_agent
+        session_obj = getattr(L.context, '_session', None)
+        if session_obj is not None:
+            session_obj.headers["User-Agent"] = user_agent
 
         try:
             post = instaloader.Post.from_shortcode(L.context, shortcode)

@@ -196,7 +196,76 @@ async def scrape_instagram_reel(url: str) -> ReelData:
     import instaloader
     from urllib.parse import urlparse
     import asyncio
+    import random
     import time
+
+    # List of proxies (add your own proxies here)
+    PROXIES = [
+        # Public proxies (these may change or be unreliable; for production, use paid proxies)
+        'http://103.169.255.54:8080',
+        'http://103.169.255.50:8080',
+        'http://103.169.255.51:8080',
+        'http://103.169.255.52:8080',
+        'http://103.169.255.53:8080',
+        'http://103.169.255.55:8080',
+        'http://103.169.255.56:8080',
+        'http://103.105.49.53:8080',
+        'http://103.105.49.54:8080',
+        'http://103.105.49.55:8080',
+        'http://103.105.49.56:8080',
+        'http://103.105.49.57:8080',
+        'http://103.105.49.58:8080',
+        'http://103.105.49.59:8080',
+        'http://103.105.49.60:8080',
+        'http://103.105.49.61:8080',
+        'http://103.105.49.62:8080',
+        'http://103.105.49.63:8080',
+        'http://103.105.49.64:8080',
+        'http://103.105.49.65:8080',
+        'http://103.105.49.66:8080',
+        'http://103.105.49.67:8080',
+        'http://103.105.49.68:8080',
+        'http://103.105.49.69:8080',
+        'http://103.105.49.70:8080',
+        'http://103.105.49.71:8080',
+        'http://103.105.49.72:8080',
+        'http://103.105.49.73:8080',
+        'http://103.105.49.74:8080',
+        'http://103.105.49.75:8080',
+        'http://103.105.49.76:8080',
+        'http://103.105.49.77:8080',
+        'http://103.105.49.78:8080',
+        'http://103.105.49.79:8080',
+        'http://103.105.49.80:8080',
+        'http://103.105.49.81:8080',
+        'http://103.105.49.82:8080',
+        'http://103.105.49.83:8080',
+        'http://103.105.49.84:8080',
+        'http://103.105.49.85:8080',
+        'http://103.105.49.86:8080',
+        'http://103.105.49.87:8080',
+        'http://103.105.49.88:8080',
+        'http://103.105.49.89:8080',
+        'http://103.105.49.90:8080',
+        'http://103.105.49.91:8080',
+        'http://103.105.49.92:8080',
+        'http://103.105.49.93:8080',
+        'http://103.105.49.94:8080',
+        'http://103.105.49.95:8080',
+        'http://103.105.49.96:8080',
+        'http://103.105.49.97:8080',
+        'http://103.105.49.98:8080',
+        'http://103.105.49.99:8080',
+        'http://103.105.49.100:8080',
+    ]
+
+    # List of user agents
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15",
+        "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Mobile/15E148 Safari/604.1",
+    ]
 
     # Extract shortcode from URL
     parsed = urlparse(url)
@@ -205,10 +274,26 @@ async def scrape_instagram_reel(url: str) -> ReelData:
     if not shortcode:
         raise ValueError("Invalid Instagram reel URL")
 
-    L = instaloader.Instaloader()
     max_retries = 3
     delay = 5  # seconds, increase on each retry
     for attempt in range(1, max_retries + 1):
+        # Randomize proxy and user-agent
+        proxy = random.choice(PROXIES) if PROXIES else None
+        user_agent = random.choice(USER_AGENTS)
+
+        # Random delay to avoid detection
+        await asyncio.sleep(random.uniform(1, 3))
+
+        L = instaloader.Instaloader()
+        # Set proxy if available
+        if proxy:
+            L.context.session.proxies = {
+                "http": proxy,
+                "https": proxy,
+            }
+        # Set user-agent
+        L.context.headers["User-Agent"] = user_agent
+
         try:
             post = instaloader.Post.from_shortcode(L.context, shortcode)
             return ReelData(

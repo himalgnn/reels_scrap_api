@@ -17,11 +17,13 @@ except RuntimeError:
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import logging
+import os
 from datetime import datetime
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, AnyHttpUrl, validator
+from cache_manager import cache_manager
 
 
 
@@ -31,6 +33,9 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+REEL_CACHE_TTL_SECONDS = int(os.getenv("REEL_CACHE_TTL_SECONDS", "900"))
+RATE_LIMIT_TTL_SECONDS = int(os.getenv("RATE_LIMIT_TTL_SECONDS", "300"))
 
 app = FastAPI(
     title="Instagram Reels Scraper API",
@@ -78,7 +83,7 @@ class ScrapeUserResponse(BaseModel):
     reels_count: int
     reels: List[ReelData]
 
-@app.get("/")
+@app.get("/", dependencies=[Depends(verify_api_key)])
 def read_root():
     """Root endpoint that returns a welcome message."""
     logger.info("Root endpoint was accessed.")
@@ -114,7 +119,7 @@ async def scrape_reel(request: ScrapeRequest):
         raise HTTPException(status_code=500, detail="Failed to scrape reel")
 
 
-@app.get("/health")
+@app.get("/health", dependencies=[Depends(verify_api_key)])
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
@@ -196,102 +201,6 @@ async def scrape_instagram_reel(url: str) -> ReelData:
     import instaloader
     from urllib.parse import urlparse
     import asyncio
-    import random
-    import time
-
-    # List of proxies (add your own proxies here)
-    import threading
-    # Global proxy pool and lock
-    if not hasattr(scrape_instagram_reel, "_proxy_pool"):
-        scrape_instagram_reel._proxy_pool = [
-            'http://103.169.255.54:8080',
-            'http://103.169.255.50:8080',
-            'http://103.169.255.51:8080',
-            'http://103.169.255.52:8080',
-            'http://103.169.255.53:8080',
-            'http://103.169.255.55:8080',
-            'http://103.169.255.56:8080',
-            'http://103.105.49.53:8080',
-            'http://103.105.49.54:8080',
-            'http://103.105.49.55:8080',
-            'http://103.105.49.56:8080',
-            'http://103.105.49.57:8080',
-            'http://103.105.49.58:8080',
-            'http://103.105.49.59:8080',
-            'http://103.105.49.60:8080',
-            'http://103.105.49.61:8080',
-            'http://103.105.49.62:8080',
-            'http://103.105.49.63:8080',
-            'http://103.105.49.64:8080',
-            'http://103.105.49.65:8080',
-            'http://103.105.49.66:8080',
-            'http://103.105.49.67:8080',
-            'http://103.105.49.68:8080',
-            'http://103.105.49.69:8080',
-            'http://103.105.49.70:8080',
-            'http://103.105.49.71:8080',
-            'http://103.105.49.72:8080',
-            'http://103.105.49.73:8080',
-            'http://103.105.49.74:8080',
-            'http://103.105.49.75:8080',
-            'http://103.105.49.76:8080',
-            'http://103.105.49.77:8080',
-            'http://103.105.49.78:8080',
-            'http://103.105.49.79:8080',
-            'http://103.105.49.80:8080',
-            'http://103.105.49.81:8080',
-            'http://103.105.49.82:8080',
-            'http://103.105.49.83:8080',
-            'http://103.105.49.84:8080',
-            'http://103.105.49.85:8080',
-            'http://103.105.49.86:8080',
-            'http://103.105.49.87:8080',
-            'http://103.105.49.88:8080',
-            'http://103.105.49.89:8080',
-            'http://103.105.49.90:8080',
-            'http://103.105.49.91:8080',
-            'http://103.105.49.92:8080',
-            'http://103.105.49.93:8080',
-            'http://103.105.49.94:8080',
-            'http://103.105.49.95:8080',
-            'http://103.105.49.96:8080',
-            'http://103.105.49.97:8080',
-            'http://103.105.49.98:8080',
-            'http://103.105.49.99:8080',
-            'http://103.105.49.100:8080',
-        ]
-        scrape_instagram_reel._proxy_lock = threading.Lock()
-        scrape_instagram_reel._last_proxy = None
-
-    def get_next_proxy():
-        with scrape_instagram_reel._proxy_lock:
-            pool = scrape_instagram_reel._proxy_pool
-            last = scrape_instagram_reel._last_proxy
-            # Remove last used from candidates
-            candidates = [p for p in pool if p != last]
-            if not candidates:
-                # Only one proxy left, use it
-                candidates = pool[:]
-            if not candidates:
-                return None
-            proxy = random.choice(candidates)
-            scrape_instagram_reel._last_proxy = proxy
-            return proxy
-
-    def remove_bad_proxy(proxy):
-        with scrape_instagram_reel._proxy_lock:
-            if proxy in scrape_instagram_reel._proxy_pool:
-                scrape_instagram_reel._proxy_pool.remove(proxy)
-                if scrape_instagram_reel._last_proxy == proxy:
-                    scrape_instagram_reel._last_proxy = None
-
-    # List of user agents
-    USER_AGENTS = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15",
-        "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Mobile/15E148 Safari/604.1",
-    ]
 
     # Extract shortcode from URL
     parsed = urlparse(url)
@@ -300,69 +209,52 @@ async def scrape_instagram_reel(url: str) -> ReelData:
     if not shortcode:
         raise ValueError("Invalid Instagram reel URL")
 
-    cooldown_seconds = 60
-    user_agent = random.choice(USER_AGENTS)
-    last_error = None
-    proxies_tried = set()
-    while True:
-        pool = scrape_instagram_reel._proxy_pool[:]
-        if not pool:
-            # No proxies left, cooldown and retry
-            await asyncio.sleep(cooldown_seconds)
-            # Optionally, reload proxies from a source here
-            pool = scrape_instagram_reel._proxy_pool[:]
-            if not pool:
-                raise HTTPException(
-                    status_code=429,
-                    detail="All proxies failed and pool is empty. Please wait and try again later."
-                )
-        for proxy in pool:
-            if proxy in proxies_tried:
-                continue
-            proxies_tried.add(proxy)
-            await asyncio.sleep(random.uniform(1, 2))
-            L = instaloader.Instaloader()
-            session_obj = getattr(L.context, '_session', None)
-            if session_obj is not None:
-                if proxy:
-                    session_obj.proxies = {
-                        "http": proxy,
-                        "https": proxy,
-                    }
-                session_obj.headers["User-Agent"] = user_agent
-            try:
-                post = instaloader.Post.from_shortcode(L.context, shortcode)
-                return ReelData(
-                    id=post.shortcode,
-                    reel_url=url,
-                    video_url=post.video_url if post.is_video else None,
-                    thumbnail_url=post.url,
-                    caption=post.caption,
-                    posted_at=post.date_utc.isoformat(),
-                    views=post.video_view_count if post.is_video else None,
-                    likes=post.likes,
-                    comments=post.comments
-                )
-            except Exception as e:
-                err_msg = str(e)
-                last_error = err_msg
-                # Remove bad proxy and try next
-                remove_bad_proxy(proxy)
-                # If rate-limited or 401, skip to next proxy immediately
-                if (
-                    "401 Unauthorized" in err_msg or
-                    "Please wait a few minutes before you try again" in err_msg or
-                    "429" in err_msg or
-                    "rate limit" in err_msg.lower()
-                ):
-                    continue
-                # Other errors: try next proxy
-                continue
-        # If all proxies tried and failed, cooldown and retry
-        await asyncio.sleep(cooldown_seconds)
-        # Optionally, reload proxies from a source here
-        if not scrape_instagram_reel._proxy_pool:
-            raise HTTPException(
-                status_code=429,
-                detail="All proxies failed and pool is empty. Please wait and try again later."
+    cache_key = f"reel:{shortcode}"
+    rate_limit_key = f"rate_limit:{shortcode}"
+
+    cached = cache_manager.get(cache_key)
+    if cache_manager.get(rate_limit_key) and cached:
+        logger.info("Rate limit active; serving cached reel data.")
+        return ReelData(**cached)
+
+    L = instaloader.Instaloader()
+    max_retries = 3
+    delay = 5  # seconds, increase on each retry
+    for attempt in range(1, max_retries + 1):
+        try:
+            post = instaloader.Post.from_shortcode(L.context, shortcode)
+            reel_data = ReelData(
+                id=post.shortcode,
+                reel_url=url,
+                video_url=post.video_url if post.is_video else None,
+                thumbnail_url=post.url,
+                caption=post.caption,
+                posted_at=post.date_utc.isoformat(),
+                views=post.video_view_count if post.is_video else None,
+                likes=post.likes,
+                comments=post.comments
             )
+            cache_manager.set(cache_key, reel_data.dict(), REEL_CACHE_TTL_SECONDS)
+            cache_manager.delete(rate_limit_key)
+            return reel_data
+        except Exception as e:
+            err_msg = str(e)
+            # Detect Instagram rate limit or 401 Unauthorized
+            if (
+                "401 Unauthorized" in err_msg or
+                "Please wait a few minutes before you try again" in err_msg or
+                "429" in err_msg or
+                "rate limit" in err_msg.lower()
+            ):
+                cache_manager.set(rate_limit_key, True, RATE_LIMIT_TTL_SECONDS)
+                if cached:
+                    logger.warning("Rate limited; returning cached reel data.")
+                    return ReelData(**cached)
+                if attempt == max_retries:
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Rate limited by Instagram. Please wait a few minutes before retrying."
+                    )
+                await asyncio.sleep(delay * attempt)
+                continue
+            raise ValueError(f"Failed to scrape reel: {err_msg}")

@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, AnyHttpUrl, field_validator, ValidationInfo
+from pydantic import BaseModel, AnyHttpUrl, validator
 
 
 

@@ -1,3 +1,11 @@
+from fastapi import Depends, Header
+
+# Simple API key (in production, use a more secure method)
+API_KEY = "himalgnnguragain"  # Change this to your actual key or use an environment variable
+
+def verify_api_key(x_api_key: str = Header(...)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
 import asyncio
 
 # Fix for Windows asyncio event loop policy - set before any imports that use asyncio
@@ -70,13 +78,13 @@ class ScrapeUserResponse(BaseModel):
     reels_count: int
     reels: List[ReelData]
 
-@app.get("/")
+@app.get("/", dependencies=[Depends(verify_api_key)])
 def read_root():
     """Root endpoint that returns a welcome message."""
     logger.info("Root endpoint was accessed.")
     return {"message": "Instagram Reels Scraper API operational"}
 
-@app.post("/scrape", response_model=ReelData)
+@app.post("/scrape", response_model=ReelData, dependencies=[Depends(verify_api_key)])
 async def scrape_reel(request: ScrapeRequest):
     """
     Scrape Instagram reel data from the provided URL.
@@ -106,12 +114,12 @@ async def scrape_reel(request: ScrapeRequest):
         raise HTTPException(status_code=500, detail="Failed to scrape reel")
 
 
-@app.get("/health")
+@app.get("/health", dependencies=[Depends(verify_api_key)])
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
-@app.get("/scrape/user/{username}", response_model=ScrapeUserResponse)
+@app.get("/scrape/user/{username}", response_model=ScrapeUserResponse, dependencies=[Depends(verify_api_key)])
 async def scrape_user_reels(
     username: str,
     limit: int = Query(default=30, ge=1, le=100, description="Number of reels to scrape (1-100)")

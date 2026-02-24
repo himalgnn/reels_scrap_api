@@ -35,18 +35,17 @@ class ScrapeRequest(BaseModel):
     # AnyHttpUrl से बेसिक URL schema/domain validation मिलती है
     reel_url: AnyHttpUrl
 
-    # V2: @validator -> @field_validator
-    @field_validator("reel_url", mode="after")
-    @classmethod
-    def validate_instagram_url(cls, v: AnyHttpUrl, info: ValidationInfo) -> AnyHttpUrl:
+    # Use pydantic v1.x @validator
+    from pydantic import validator
+    @validator("reel_url")
+    def validate_instagram_url(cls, v):
         host = v.host or ""
         path = v.path or ""
         # Instagram domain check
         if "instagram.com" not in host and "instagr.am" not in host:
             raise ValueError("URL must be an Instagram URL")
-        # Accept /reel/ or /p/ with any valid Instagram shortcode (including dashes/underscores)
+        # Accept /reel/<shortcode>, /reels/<shortcode>, or /p/<shortcode>
         import re
-        # Accepts /reel/<shortcode>, /reels/<shortcode>, or /p/<shortcode>
         if not re.search(r"/(reel|reels|p)/[\w\-]+/?", path):
             raise ValueError("URL must be an Instagram reel or post URL")
         return v

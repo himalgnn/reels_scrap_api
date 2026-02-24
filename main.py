@@ -195,6 +195,8 @@ async def scrape_instagram_reel(url: str) -> ReelData:
     """
     import instaloader
     from urllib.parse import urlparse
+    import asyncio
+    import time
 
     # Extract shortcode from URL
     parsed = urlparse(url)
@@ -204,18 +206,39 @@ async def scrape_instagram_reel(url: str) -> ReelData:
         raise ValueError("Invalid Instagram reel URL")
 
     L = instaloader.Instaloader()
-    try:
-        post = instaloader.Post.from_shortcode(L.context, shortcode)
-        return ReelData(
-            id=post.shortcode,
-            reel_url=url,
-            video_url=post.video_url if post.is_video else None,
-            thumbnail_url=post.url,
-            caption=post.caption,
-            posted_at=post.date_utc.isoformat(),
-            views=post.video_view_count if post.is_video else None,
-            likes=post.likes,
-            comments=post.comments
-        )
-    except Exception as e:
-        raise ValueError(f"Failed to scrape reel: {str(e)}")
+    max_retries = 3
+    delay = 5  # seconds, increase on each retry
+    for attempt in range(1, max_retries + 1):
+        try:
+            post = instaloader.Post.from_shortcode(L.context, shortcode)
+            return ReelData(
+                id=post.shortcode,
+                reel_url=url,
+                video_url=post.video_url if post.is_video else None,
+                thumbnail_url=post.url,
+                caption=post.caption,
+                posted_at=post.date_utc.isoformat(),
+                views=post.video_view_count if post.is_video else None,
+                likes=post.likes,
+                comments=post.comments
+            )
+        except Exception as e:
+            err_msg = str(e)
+            # Detect Instagram rate limit or 401 Unauthorized
+            if (
+                "401 Unauthorized" in err_msg or
+                "Please wait a few minutes before you try again" in err_msg or
+                "429" in err_msg or
+                "rate limit" in err_msg.lower()
+            ):
+                if attempt == max_retries:
+                    # Raise a special error to be handled by the API endpoint
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Rate limited by Instagram. Please wait a few minutes before retrying."
+                    )
+                # Exponential backoff
+                await asyncio.sleep(delay * attempt)
+                continue
+            # Other errors: raise as 400
+            raise ValueError(f"Failed to scrape reel: {err_msg}")

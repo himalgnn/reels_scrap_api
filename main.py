@@ -200,64 +200,90 @@ async def scrape_instagram_reel(url: str) -> ReelData:
     import time
 
     # List of proxies (add your own proxies here)
-    PROXIES = [
-        # Public proxies (these may change or be unreliable; for production, use paid proxies)
-        'http://103.169.255.54:8080',
-        'http://103.169.255.50:8080',
-        'http://103.169.255.51:8080',
-        'http://103.169.255.52:8080',
-        'http://103.169.255.53:8080',
-        'http://103.169.255.55:8080',
-        'http://103.169.255.56:8080',
-        'http://103.105.49.53:8080',
-        'http://103.105.49.54:8080',
-        'http://103.105.49.55:8080',
-        'http://103.105.49.56:8080',
-        'http://103.105.49.57:8080',
-        'http://103.105.49.58:8080',
-        'http://103.105.49.59:8080',
-        'http://103.105.49.60:8080',
-        'http://103.105.49.61:8080',
-        'http://103.105.49.62:8080',
-        'http://103.105.49.63:8080',
-        'http://103.105.49.64:8080',
-        'http://103.105.49.65:8080',
-        'http://103.105.49.66:8080',
-        'http://103.105.49.67:8080',
-        'http://103.105.49.68:8080',
-        'http://103.105.49.69:8080',
-        'http://103.105.49.70:8080',
-        'http://103.105.49.71:8080',
-        'http://103.105.49.72:8080',
-        'http://103.105.49.73:8080',
-        'http://103.105.49.74:8080',
-        'http://103.105.49.75:8080',
-        'http://103.105.49.76:8080',
-        'http://103.105.49.77:8080',
-        'http://103.105.49.78:8080',
-        'http://103.105.49.79:8080',
-        'http://103.105.49.80:8080',
-        'http://103.105.49.81:8080',
-        'http://103.105.49.82:8080',
-        'http://103.105.49.83:8080',
-        'http://103.105.49.84:8080',
-        'http://103.105.49.85:8080',
-        'http://103.105.49.86:8080',
-        'http://103.105.49.87:8080',
-        'http://103.105.49.88:8080',
-        'http://103.105.49.89:8080',
-        'http://103.105.49.90:8080',
-        'http://103.105.49.91:8080',
-        'http://103.105.49.92:8080',
-        'http://103.105.49.93:8080',
-        'http://103.105.49.94:8080',
-        'http://103.105.49.95:8080',
-        'http://103.105.49.96:8080',
-        'http://103.105.49.97:8080',
-        'http://103.105.49.98:8080',
-        'http://103.105.49.99:8080',
-        'http://103.105.49.100:8080',
-    ]
+    import threading
+    # Global proxy pool and lock
+    if not hasattr(scrape_instagram_reel, "_proxy_pool"):
+        scrape_instagram_reel._proxy_pool = [
+            'http://103.169.255.54:8080',
+            'http://103.169.255.50:8080',
+            'http://103.169.255.51:8080',
+            'http://103.169.255.52:8080',
+            'http://103.169.255.53:8080',
+            'http://103.169.255.55:8080',
+            'http://103.169.255.56:8080',
+            'http://103.105.49.53:8080',
+            'http://103.105.49.54:8080',
+            'http://103.105.49.55:8080',
+            'http://103.105.49.56:8080',
+            'http://103.105.49.57:8080',
+            'http://103.105.49.58:8080',
+            'http://103.105.49.59:8080',
+            'http://103.105.49.60:8080',
+            'http://103.105.49.61:8080',
+            'http://103.105.49.62:8080',
+            'http://103.105.49.63:8080',
+            'http://103.105.49.64:8080',
+            'http://103.105.49.65:8080',
+            'http://103.105.49.66:8080',
+            'http://103.105.49.67:8080',
+            'http://103.105.49.68:8080',
+            'http://103.105.49.69:8080',
+            'http://103.105.49.70:8080',
+            'http://103.105.49.71:8080',
+            'http://103.105.49.72:8080',
+            'http://103.105.49.73:8080',
+            'http://103.105.49.74:8080',
+            'http://103.105.49.75:8080',
+            'http://103.105.49.76:8080',
+            'http://103.105.49.77:8080',
+            'http://103.105.49.78:8080',
+            'http://103.105.49.79:8080',
+            'http://103.105.49.80:8080',
+            'http://103.105.49.81:8080',
+            'http://103.105.49.82:8080',
+            'http://103.105.49.83:8080',
+            'http://103.105.49.84:8080',
+            'http://103.105.49.85:8080',
+            'http://103.105.49.86:8080',
+            'http://103.105.49.87:8080',
+            'http://103.105.49.88:8080',
+            'http://103.105.49.89:8080',
+            'http://103.105.49.90:8080',
+            'http://103.105.49.91:8080',
+            'http://103.105.49.92:8080',
+            'http://103.105.49.93:8080',
+            'http://103.105.49.94:8080',
+            'http://103.105.49.95:8080',
+            'http://103.105.49.96:8080',
+            'http://103.105.49.97:8080',
+            'http://103.105.49.98:8080',
+            'http://103.105.49.99:8080',
+            'http://103.105.49.100:8080',
+        ]
+        scrape_instagram_reel._proxy_lock = threading.Lock()
+        scrape_instagram_reel._last_proxy = None
+
+    def get_next_proxy():
+        with scrape_instagram_reel._proxy_lock:
+            pool = scrape_instagram_reel._proxy_pool
+            last = scrape_instagram_reel._last_proxy
+            # Remove last used from candidates
+            candidates = [p for p in pool if p != last]
+            if not candidates:
+                # Only one proxy left, use it
+                candidates = pool[:]
+            if not candidates:
+                return None
+            proxy = random.choice(candidates)
+            scrape_instagram_reel._last_proxy = proxy
+            return proxy
+
+    def remove_bad_proxy(proxy):
+        with scrape_instagram_reel._proxy_lock:
+            if proxy in scrape_instagram_reel._proxy_pool:
+                scrape_instagram_reel._proxy_pool.remove(proxy)
+                if scrape_instagram_reel._last_proxy == proxy:
+                    scrape_instagram_reel._last_proxy = None
 
     # List of user agents
     USER_AGENTS = [
@@ -274,28 +300,23 @@ async def scrape_instagram_reel(url: str) -> ReelData:
     if not shortcode:
         raise ValueError("Invalid Instagram reel URL")
 
-    max_retries = 3
-    delay = 5  # seconds, increase on each retry
-    for attempt in range(1, max_retries + 1):
-        # Randomize proxy and user-agent
-        proxy = random.choice(PROXIES) if PROXIES else None
-        user_agent = random.choice(USER_AGENTS)
-
+    max_attempts = len(scrape_instagram_reel._proxy_pool) + 2  # try all proxies, then direct
+    delay = 5
+    user_agent = random.choice(USER_AGENTS)
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        proxy = get_next_proxy()
         # Random delay to avoid detection
-        await asyncio.sleep(random.uniform(1, 3))
+        await asyncio.sleep(random.uniform(1, 2))
 
         L = instaloader.Instaloader()
-        # Set proxy if available (use _session for Instaloader >=4.8)
-        if proxy:
-            session_obj = getattr(L.context, '_session', None)
-            if session_obj is not None:
+        session_obj = getattr(L.context, '_session', None)
+        if session_obj is not None:
+            if proxy:
                 session_obj.proxies = {
                     "http": proxy,
                     "https": proxy,
                 }
-        # Set user-agent
-        session_obj = getattr(L.context, '_session', None)
-        if session_obj is not None:
             session_obj.headers["User-Agent"] = user_agent
 
         try:
@@ -313,6 +334,10 @@ async def scrape_instagram_reel(url: str) -> ReelData:
             )
         except Exception as e:
             err_msg = str(e)
+            last_error = err_msg
+            # Remove bad proxy and try next
+            if proxy:
+                remove_bad_proxy(proxy)
             # Detect Instagram rate limit or 401 Unauthorized
             if (
                 "401 Unauthorized" in err_msg or
@@ -320,14 +345,14 @@ async def scrape_instagram_reel(url: str) -> ReelData:
                 "429" in err_msg or
                 "rate limit" in err_msg.lower()
             ):
-                if attempt == max_retries:
-                    # Raise a special error to be handled by the API endpoint
+                if attempt == max_attempts:
                     raise HTTPException(
                         status_code=429,
-                        detail="Rate limited by Instagram. Please wait a few minutes before retrying."
+                        detail="Rate limited by Instagram or all proxies failed. Please wait a few minutes before retrying."
                     )
-                # Exponential backoff
                 await asyncio.sleep(delay * attempt)
                 continue
             # Other errors: raise as 400
-            raise ValueError(f"Failed to scrape reel: {err_msg}")
+            if attempt == max_attempts:
+                raise ValueError(f"Failed to scrape reel: {err_msg}")
+            continue

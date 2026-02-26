@@ -230,7 +230,7 @@ async def scrape_instagram_reel(url: str) -> ReelData:
                 thumbnail_url=post.url,
                 caption=post.caption,
                 posted_at=post.date_utc.isoformat(),
-                views=post.video_view_count if post.is_video else None,
+                views=post.video_play_count if post.is_video else None,
                 likes=post.likes,
                 comments=post.comments
             )

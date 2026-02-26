@@ -83,7 +83,7 @@ class ScrapeUserResponse(BaseModel):
     reels_count: int
     reels: List[ReelData]
 
-@app.get("/", dependencies=[Depends(verify_api_key)])
+@app.get("/")
 def read_root():
     """Root endpoint that returns a welcome message."""
     logger.info("Root endpoint was accessed.")
@@ -119,7 +119,7 @@ async def scrape_reel(request: ScrapeRequest):
         raise HTTPException(status_code=500, detail="Failed to scrape reel")
 
 
-@app.get("/health", dependencies=[Depends(verify_api_key)])
+@app.get("/health")
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
